@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Decision History</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="container">
+    <h1>📜 Decision History</h1>
+
+    <div class="btn-group">
+        <a href="/" class="btn">🏠 Home</a>
+        <a href="/add-decision" class="btn">➕ Add Decision</a>
+        <a href="/analyze-all" class="btn ai">🤖 AI Analyze All</a>
+    </div>
+
+    <hr>
+
+    {% for d in decisions %}
+    <div class="card">
+        <h3>{{ d['title'] }}</h3>
+        <p><b>Reasoning:</b> {{ d['reasoning'] }}</p>
+        <p><b>Expected Outcome:</b> {{ d['expected_outcome'] }}</p>
+
+        {% if d['actual_outcome'] %}
+            <p><b>Actual Outcome:</b> {{ d['actual_outcome'] }}</p>
+
+            <div class="btn-group">
+                <a href="{{ url_for('analyze_single', decision_id=d['id']) }}" class="btn info">🤖 AI Analyze</a>
+                <a href="{{ url_for('delete_decision', decision_id=d['id']) }}" class="btn danger" onclick="return confirm('Delete this decision?');">🗑 Delete</a>
+            </div>
+
+        {% else %}
+            <a href="{{ url_for('add_outcome', decision_id=d['id']) }}" class="btn">➕ Add Outcome</a>
+            <a href="{{ url_for('delete_decision', decision_id=d['id']) }}" class="btn danger" onclick="return confirm('Delete this decision?');">🗑 Delete</a>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+</body>
+</html>

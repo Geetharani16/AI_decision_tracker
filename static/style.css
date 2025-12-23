@@ -1,0 +1,274 @@
+/* ===============================
+   GLOBAL RESET & BASE STYLES
+================================ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Segoe UI", Arial, sans-serif;
+}
+
+body {
+    background: #f4f6f9;
+    color: #333;
+    line-height: 1.6;
+}
+
+/* ===============================
+   BUTTONS (COMMON)
+================================ */
+.btn {
+    display: inline-block;
+    padding: 10px 18px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    margin: 5px;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+}
+
+.btn.primary {
+    background: #2563eb;
+    color: #fff;
+}
+.btn.primary:hover {
+    background: #1e40af;
+}
+
+.btn.secondary {
+    background: #6b7280;
+    color: #fff;
+}
+.btn.secondary:hover {
+    background: #4b5563;
+}
+
+.btn.ai {
+    background: #9333ea;
+    color: #fff;
+}
+.btn.ai:hover {
+    background: #7e22ce;
+}
+
+.btn.danger {
+    background: #dc2626;
+    color: #fff;
+}
+.btn.danger:hover {
+    background: #991b1b;
+}
+
+/* ===============================
+   HOME PAGE BACKGROUND
+================================ */
+.home-bg {
+    height: 100vh;
+    background-image: url("https://plus.unsplash.com/premium_vector-1726043436593-b8bed388340c?auto=format&fit=crop&w=1920&q=90");
+    background-size: cover;
+    background-position: center;
+    position: relative;
+}
+
+/* Dark overlay */
+.overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+}
+
+/* Hero section */
+.hero-container {
+    position: relative;
+    z-index: 2;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hero-card {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(12px);
+    padding: 40px;
+    border-radius: 16px;
+    max-width: 650px;
+    text-align: center;
+    color: #fff;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+}
+
+.hero-card h1 {
+    font-size: 38px;
+    margin-bottom: 15px;
+}
+
+.hero-card p {
+    font-size: 18px;
+    margin-bottom: 25px;
+    color: #e5e7eb;
+}
+
+/* ===============================
+   PAGE CONTAINER
+================================ */
+.page-container {
+    max-width: 900px;
+    margin: 30px auto;
+    padding: 20px;
+}
+
+/* ===============================
+   NAV BUTTON BAR
+================================ */
+.nav-bar {
+    margin-bottom: 20px;
+}
+
+/* ===============================
+   CARD DESIGN
+================================ */
+.card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 18px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.card h3 {
+    margin-bottom: 10px;
+    color: #111827;
+}
+
+/* ===============================
+   FORMS (ADD DECISION / OUTCOME)
+================================ */
+form label {
+    font-weight: 600;
+    margin-top: 15px;
+    display: block;
+}
+
+form input,
+form textarea {
+    width: 100%;
+    padding: 10px;
+    margin-top: 6px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    font-size: 15px;
+}
+
+form textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+form button {
+    margin-top: 20px;
+}
+
+/* ===============================
+   HISTORY PAGE
+================================ */
+.history-title {
+    margin-bottom: 15px;
+}
+
+/* ===============================
+   AI ANALYSIS PAGE
+================================ */
+.analysis-container {
+    max-width: 900px;
+    margin: 30px auto;
+}
+
+.analysis-box {
+    background: #f9fafb;
+    border-left: 6px solid #9333ea;
+    padding: 20px;
+    border-radius: 10px;
+    margin-top: 15px;
+}
+
+.analysis-box h3 {
+    color: #4c1d95;
+    margin-top: 15px;
+}
+
+.analysis-box ul {
+    margin-left: 20px;
+    margin-top: 10px;
+}
+
+.analysis-box li {
+    margin-bottom: 8px;
+}
+
+/* ===============================
+   LINKS AS BUTTONS
+================================ */
+a {
+    color: inherit;
+}
+
+/* ===============================
+   RESPONSIVE
+================================ */
+@media (max-width: 768px) {
+    .hero-card h1 {
+        font-size: 28px;
+    }
+
+    .hero-card p {
+        font-size: 16px;
+    }
+}
+/* ===============================
+   HOME HERO BUTTONS
+================================ */
+.hero-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 25px;
+}
+
+.hero-buttons .btn {
+    padding: 14px 26px;
+    font-size: 16px;
+    border-radius: 50px;
+    min-width: 180px;
+    text-align: center;
+    box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+    transform: translateY(0);
+}
+
+/* Hover animation */
+.hero-buttons .btn:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 22px rgba(0,0,0,0.45);
+}
+
+/* AI button special glow */
+.hero-buttons .btn.ai {
+    background: linear-gradient(135deg, #9333ea, #6d28d9);
+    box-shadow: 0 0 15px rgba(147, 51, 234, 0.7);
+}
+
+.hero-buttons .btn.ai:hover {
+    box-shadow: 0 0 25px rgba(147, 51, 234, 0.95);
+}
+
+/* Primary & Secondary enhancements */
+.hero-buttons .btn.primary {
+    background: linear-gradient(135deg, #2563eb, #1e40af);
+}
+
+.hero-buttons .btn.secondary {
+    background: linear-gradient(135deg, #6b7280, #374151);
+}

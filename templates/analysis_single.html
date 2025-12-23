@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Decision Analysis</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="container">
+    <h2>🤖 AI Analysis (Single Decision)</h2>
+
+    {% if decision %}
+        <div class="card">
+            <h3>{{ decision.title }}</h3>
+            <p><b>Reasoning:</b> {{ decision.reasoning }}</p>
+            <p><b>Expected Outcome:</b> {{ decision.expected_outcome }}</p>
+            <p><b>Actual Outcome:</b> {{ decision.actual_outcome }}</p>
+        </div>
+        <hr>
+    {% endif %}
+
+    <div class="analysis-box">
+        {% if analysis %}
+            {{ analysis | safe }}
+        {% else %}
+            <p>⚠ AI analysis unavailable for this decision.</p>
+        {% endif %}
+    </div>
+
+    <br>
+    <div class="btn-group">
+        <a href="/history" class="btn">⬅ Back to History</a>
+        <a href="/analyze-all" class="btn btn-primary">📊 Analyze All Decisions</a>
+    </div>
+</div>
+
+</body>
+</html>

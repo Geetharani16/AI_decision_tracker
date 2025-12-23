@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Outcome</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<h1>📝 Add Actual Outcome</h1>
+
+<form method="POST" class="form-card">
+    <label>Actual Outcome</label>
+    <textarea name="actual_outcome" required></textarea>
+
+    <button class="btn">Save Outcome</button>
+</form>
+
+<a href="/history" class="back-link">⬅ Back</a>
+
+</body>
+</html>
