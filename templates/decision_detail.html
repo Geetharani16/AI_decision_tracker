@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Decision Analysis - AI Decision Justification Tracker</title>
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --secondary-color: #f9fafb;
+            --text-color: #1f2937;
+            --border-color: #e5e7eb;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f3f4f6;
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+        
+        .decision-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .decision-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .decision-date {
+            font-size: 14px;
+            color: #6b7280;
+        }
+        
+        .decision-content {
+            margin-bottom: 20px;
+        }
+        
+        .decision-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f9fafb;
+            border-radius: 5px;
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .decision-section h3 {
+            font-size: 16px;
+            color: #4b5563;
+            margin-bottom: 10px;
+        }
+        
+        .decision-section p {
+            font-size: 15px;
+            line-height: 1.6;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .status-pending {
+            background-color: #fef3c7;
+            color: #d97706;
+        }
+        
+        .status-completed {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #4338ca;
+        }
+        
+        .btn-secondary {
+            background-color: #6b7280;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #585d6d;
+        }
+        
+        .btn-success {
+            background-color: var(--success-color);
+        }
+        
+        .btn-success:hover {
+            background-color: #0da271;
+        }
+        
+        .btn-warning {
+            background-color: var(--warning-color);
+        }
+        
+        .btn-warning:hover {
+            background-color: #d97706;
+        }
+        
+        .btn-danger {
+            background-color: var(--error-color);
+        }
+        
+        .btn-danger:hover {
+            background-color: #dc2626;
+        }
+        
+        .analysis-container {
+            margin-top: 30px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 30px;
+        }
+        
+        .analysis-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .analysis-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .analysis-result {
+            padding: 20px;
+            background-color: #f9fafb;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 5px;
+            color: white;
+            font-weight: 600;
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: opacity 0.3s, transform 0.3s;
+        }
+        
+        .notification.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .notification.success {
+            background-color: var(--success-color);
+        }
+        
+        .notification.error {
+            background-color: var(--error-color);
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .card {
+                padding: 15px;
+            }
+            
+            .decision-title {
+                font-size: 20px;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">← Back to All Decisions</a>
+        
+        <div class="card">
+            <div class="decision-header">
+                <div class="decision-title" id="decisionTitle">Loading...</div>
+                <div>
+                    <span class="status-badge" id="statusBadge">Loading...</span>
+                    <div class="decision-date" id="decisionDate"></div>
+                </div>
+            </div>
+            
+            <div class="decision-content">
+                <div class="decision-section">
+                    <h3>Reasoning</h3>
+                    <p id="decisionReasoning">Loading...</p>
+                </div>
+                
+                <div class="decision-section">
+                    <h3>Expected Outcome</h3>
+                    <p id="expectedOutcome">Loading...</p>
+                </div>
+                
+                <div class="decision-section">
+                    <h3>Actual Outcome</h3>
+                    <p id="actualOutcome">Loading...</p>
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <button id="analyzeBtn" class="btn-success">AI Analyze</button>
+                <button id="updateOutcomeBtn" class="btn-warning">Update Outcome</button>
+                <button id="deleteBtn" class="btn-danger">Delete Decision</button>
+            </div>
+        </div>
+        
+        <div class="analysis-container">
+            <div class="analysis-header">
+                <div class="analysis-title">AI Analysis Report</div>
+            </div>
+            <div id="analysisResult" class="analysis-result">
+                Click "AI Analyze" to generate the analysis report
+            </div>
+        </div>
+    </div>
+    
+    <div id="notification" class="notification"></div>
+    
+    <script>
+        // DOM Elements
+        const decisionTitle = document.getElementById('decisionTitle');
+        const statusBadge = document.getElementById('statusBadge');
+        const decisionDate = document.getElementById('decisionDate');
+        const decisionReasoning = document.getElementById('decisionReasoning');
+        const expectedOutcome = document.getElementById('expectedOutcome');
+        const actualOutcome = document.getElementById('actualOutcome');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const updateOutcomeBtn = document.getElementById('updateOutcomeBtn');
+        const deleteBtn = document.getElementById('deleteBtn');
+        const analysisResult = document.getElementById('analysisResult');
+        const notification = document.getElementById('notification');
+        
+        // Get decision ID from URL
+        const decisionId = window.location.pathname.split('/').pop();
+        
+        // API base URL for decision data
+        const apiBaseUrl = '/api';  // Using the API route instead of the page route
+        
+        // Show notification
+        function showNotification(message, isSuccess = true) {
+            notification.textContent = message;
+            notification.className = 'notification';
+            notification.classList.add(isSuccess ? 'success' : 'error');
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Format response to convert markdown-style formatting to HTML
+        function formatResponse(text) {
+            // Convert **text** to <strong>text</strong>
+            let formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            
+            // Convert newlines to <br> tags
+            formattedText = formattedText.replace(/\n/g, '<br>');
+            
+            // Convert bullet points to HTML
+            formattedText = formattedText.replace(/^- (.*?)(<br>|$)/gm, '• $1$2');
+            
+            // Add spacing for sections
+            formattedText = formattedText.replace(/<br>\s*<br>/g, '<br><br>');
+            
+            return formattedText;
+        }
+        
+        // Load decision details
+        async function loadDecision() {
+            try {
+                const response = await fetch(`/decision_data/${decisionId}`);
+                
+                if (response.ok) {
+                    const decision = await response.json();
+                    
+                    decisionTitle.textContent = decision.title;
+                    decisionReasoning.textContent = decision.reasoning || 'No reasoning provided';
+                    expectedOutcome.textContent = decision.expected_outcome || 'No expected outcome provided';
+                    actualOutcome.textContent = decision.actual_outcome || 'No actual outcome recorded yet';
+                    
+                    // Update status badge
+                    const statusClass = decision.actual_outcome ? 'status-completed' : 'status-pending';
+                    const statusText = decision.actual_outcome ? 'Completed' : 'Pending Outcome';
+                    statusBadge.className = `status-badge ${statusClass}`;
+                    statusBadge.textContent = statusText;
+                    
+                    // Update date
+                    decisionDate.textContent = new Date(decision.created_at).toLocaleDateString();
+                } else {
+                    showNotification('Error loading decision', false);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('Error loading decision', false);
+            }
+        }
+        
+        // Analyze decision with streaming
+        function analyzeDecision() {
+            analysisResult.innerHTML = '<div class="loading"></div> Analyzing decision...';
+            
+            const eventSource = new EventSource(`/analyze_decision/${decisionId}`);
+            let fullResponse = '';
+            
+            eventSource.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                
+                if (data.error) {
+                    analysisResult.innerHTML = `<strong>Error:</strong> ${data.error}`;
+                    eventSource.close();
+                    return;
+                }
+                
+                if (data.chunk) {
+                    fullResponse += data.chunk;
+                    analysisResult.innerHTML = `${formatResponse(fullResponse)}`;
+                }
+                
+                if (data.complete) {
+                    analysisResult.innerHTML = `${formatResponse(data.full_response)}`;
+                    eventSource.close();
+                }
+            };
+            
+            eventSource.onerror = function() {
+                eventSource.close();
+                analysisResult.innerHTML = '<strong>Error:</strong> Connection failed';
+            };
+        }
+        
+        // Update outcome
+        async function updateOutcome() {
+            const outcome = prompt('Enter the actual outcome for this decision:', actualOutcome.textContent !== 'No actual outcome recorded yet' ? actualOutcome.textContent : '');
+            
+            if (outcome) {
+                try {
+                    const response = await fetch(`/update_outcome/${decisionId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ actual_outcome: outcome })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        showNotification('Outcome updated successfully!');
+                        loadDecision(); // Reload the decision details
+                    } else {
+                        showNotification(result.error || 'Error updating outcome', false);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    showNotification('Error updating outcome', false);
+                }
+            }
+        }
+        
+        // Delete decision
+        async function deleteDecision() {
+            if (confirm('Are you sure you want to delete this decision?')) {
+                try {
+                    const response = await fetch(`/delete_decision/${decisionId}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (response.ok) {
+                        showNotification('Decision deleted successfully!');
+                        setTimeout(() => {
+                            window.location.href = '/'; // Redirect to home page
+                        }, 1500);
+                    } else {
+                        const result = await response.json();
+                        showNotification(result.error || 'Error deleting decision', false);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    showNotification('Error deleting decision', false);
+                }
+            }
+        }
+        
+        // Event listeners
+        analyzeBtn.addEventListener('click', analyzeDecision);
+        updateOutcomeBtn.addEventListener('click', updateOutcome);
+        deleteBtn.addEventListener('click', deleteDecision);
+        
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDecision();
+        });
+    </script>
+</body>
+</html>
