@@ -1,4 +1,8 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, Response
+from flask import (
+    Flask, render_template, request, redirect,
+    url_for, jsonify, Response, session
+)
+from functools import wraps
 import sqlite3
 import json
 import requests
@@ -8,255 +12,487 @@ import time
 
 app = Flask(__name__)
 
-# Database initialization
+# --------------------------------------------------
+# FLASK CONFIGURATION
+# --------------------------------------------------
+
+app.secret_key = os.environ.get(
+    "FLASK_SECRET_KEY",
+    "development-key-change-before-deployment"
+)
+
+DEMO_USERNAME = os.environ.get("APP_USERNAME", "admin")
+DEMO_PASSWORD = os.environ.get("APP_PASSWORD", "Decision@123")
+
+# Keep the existing database filename
+DATABASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "decisions.db")
+
+
+# --------------------------------------------------
+# DATABASE INITIALIZATION
+# --------------------------------------------------
+
 def init_db():
-    conn = sqlite3.connect('decisions.db')
+    conn = sqlite3.connect(DATABASE)
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS decisions
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  title TEXT NOT NULL,
-                  reasoning TEXT,
-                  expected_outcome TEXT,
-                  actual_outcome TEXT,
-                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS decisions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            reasoning TEXT,
+            expected_outcome TEXT,
+            actual_outcome TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     conn.commit()
     conn.close()
 
-# Initialize database
+
 init_db()
 
-# Function to get database connection
+
 def get_db_connection():
-    conn = sqlite3.connect('decisions.db')
+    conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     return conn
 
-# Route to serve the main page
-@app.route('/')
-def index():
-    return render_template('index.html')
 
-# Route to get all decisions
-@app.route('/decisions')
+# --------------------------------------------------
+# LOGIN AUTHENTICATION
+# --------------------------------------------------
+
+def login_required(view_function):
+    @wraps(view_function)
+    def wrapped_view(*args, **kwargs):
+        if not session.get("logged_in"):
+            return redirect(url_for("login"))
+        return view_function(*args, **kwargs)
+
+    return wrapped_view
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if session.get("logged_in"):
+        return redirect(url_for("index"))
+
+    error = None
+
+    if request.method == "POST":
+        username = request.form.get("username", "")
+        password = request.form.get("password", "")
+
+        if username == DEMO_USERNAME and password == DEMO_PASSWORD:
+            session.clear()
+            session["logged_in"] = True
+            return redirect(url_for("index"))
+
+        error = "Invalid username or password."
+
+    return render_template("login.html", error=error)
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+
+# --------------------------------------------------
+# MAIN DASHBOARD
+# --------------------------------------------------
+
+@app.route("/")
+@login_required
+def index():
+    return render_template("index.html")
+
+
+# --------------------------------------------------
+# GET ALL DECISIONS
+# --------------------------------------------------
+
+@app.route("/decisions")
+@login_required
 def get_decisions():
     conn = get_db_connection()
-    decisions = conn.execute('SELECT * FROM decisions ORDER BY created_at DESC').fetchall()
+
+    decisions = conn.execute(
+        "SELECT * FROM decisions ORDER BY created_at DESC"
+    ).fetchall()
+
     conn.close()
+
     decisions_list = [dict(decision) for decision in decisions]
+
     return jsonify(decisions_list)
 
-# Route to add a new decision
-@app.route('/add_decision', methods=['POST'])
+
+# --------------------------------------------------
+# ADD A DECISION
+# --------------------------------------------------
+
+@app.route("/add_decision", methods=["POST"])
+@login_required
 def add_decision():
-    data = request.get_json()
-    title = data.get('title')
-    reasoning = data.get('reasoning')
-    expected_outcome = data.get('expected_outcome')
-    actual_outcome = data.get('actual_outcome')
-    
+    data = request.get_json(silent=True) or {}
+
+    title = data.get("title")
+    reasoning = data.get("reasoning")
+    expected_outcome = data.get("expected_outcome")
+    actual_outcome = data.get("actual_outcome")
+
     if not title:
-        return jsonify({'error': 'Title is required'}), 400
-    
+        return jsonify({"error": "Title is required"}), 400
+
     conn = get_db_connection()
+
     c = conn.cursor()
-    c.execute('INSERT INTO decisions (title, reasoning, expected_outcome, actual_outcome) VALUES (?, ?, ?, ?)',
-              (title, reasoning, expected_outcome, actual_outcome or None))
+
+    c.execute(
+        """
+        INSERT INTO decisions
+        (title, reasoning, expected_outcome, actual_outcome)
+        VALUES (?, ?, ?, ?)
+        """,
+        (
+            title,
+            reasoning,
+            expected_outcome,
+            actual_outcome or None
+        )
+    )
+
     decision_id = c.lastrowid
+
     conn.commit()
     conn.close()
-    
-    return jsonify({'id': decision_id, 'message': 'Decision added successfully'})
 
-# Route to update an outcome
-@app.route('/update_outcome/<int:decision_id>', methods=['POST'])
+    return jsonify({
+        "id": decision_id,
+        "message": "Decision added successfully"
+    })
+
+
+# --------------------------------------------------
+# UPDATE A DECISION OUTCOME
+# --------------------------------------------------
+
+@app.route("/update_outcome/<int:decision_id>", methods=["POST"])
+@login_required
 def update_outcome(decision_id):
-    data = request.get_json()
-    actual_outcome = data.get('actual_outcome')
-    
+    data = request.get_json(silent=True) or {}
+
+    actual_outcome = data.get("actual_outcome")
+
     if not actual_outcome:
-        return jsonify({'error': 'Actual outcome is required'}), 400
-    
+        return jsonify({
+            "error": "Actual outcome is required"
+        }), 400
+
     conn = get_db_connection()
+
     c = conn.cursor()
-    c.execute('UPDATE decisions SET actual_outcome = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-              (actual_outcome, decision_id))
+
+    c.execute(
+        """
+        UPDATE decisions
+        SET actual_outcome = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        """,
+        (actual_outcome, decision_id)
+    )
+
     conn.commit()
     conn.close()
-    
-    return jsonify({'message': 'Outcome updated successfully'})
 
-# Route to delete a decision
-@app.route('/delete_decision/<int:decision_id>', methods=['DELETE'])
+    return jsonify({
+        "message": "Outcome updated successfully"
+    })
+
+
+# --------------------------------------------------
+# DELETE A DECISION
+# --------------------------------------------------
+
+@app.route("/delete_decision/<int:decision_id>", methods=["DELETE"])
+@login_required
 def delete_decision(decision_id):
     conn = get_db_connection()
+
     c = conn.cursor()
-    c.execute('DELETE FROM decisions WHERE id = ?', (decision_id,))
+
+    c.execute(
+        "DELETE FROM decisions WHERE id = ?",
+        (decision_id,)
+    )
+
     conn.commit()
     conn.close()
-    
-    return jsonify({'message': 'Decision deleted successfully'})
 
-# Function to call Ollama API with streaming
+    return jsonify({
+        "message": "Decision deleted successfully"
+    })
+
+
+# --------------------------------------------------
+# OLLAMA AI API WITH STREAMING
+# --------------------------------------------------
+
 def call_ollama_api(prompt):
     try:
-        response = requests.post(
-            'http://localhost:11434/api/generate',
+        with requests.post(
+            "http://localhost:11434/api/generate",
             json={
-                'model': 'gemma3:1b',
-                'prompt': prompt,
-                'stream': True
+                "model": "gemma3:1b",
+                "prompt": prompt,
+                "stream": True
             },
-            stream=True
-        )
-        
-        if response.status_code == 200:
-            # Stream the response
-            for line in response.iter_lines():
-                if line:
-                    decoded_line = line.decode('utf-8')
-                    try:
-                        json_data = json.loads(decoded_line)
-                        if 'response' in json_data:
-                            yield json_data['response']
-                        if json_data.get('done', False):
-                            break
-                    except json.JSONDecodeError:
-                        continue
-        else:
-            yield f"Error: {response.status_code} - {response.text}"
+            stream=True,
+            timeout=(10, 300)
+        ) as response:
+
+            if response.status_code == 200:
+                for line in response.iter_lines():
+                    if line:
+                        decoded_line = line.decode("utf-8")
+
+                        try:
+                            json_data = json.loads(decoded_line)
+
+                            if "response" in json_data:
+                                yield json_data["response"]
+
+                            if json_data.get("done", False):
+                                break
+
+                        except json.JSONDecodeError:
+                            continue
+
+            else:
+                yield (
+                    f"Error: {response.status_code} - "
+                    f"{response.text}"
+                )
+
     except Exception as e:
         yield f"Error connecting to Ollama: {str(e)}"
 
 
-# Function to stream AI analysis for a single decision
+# --------------------------------------------------
+# ANALYZE A SINGLE DECISION
+# --------------------------------------------------
+
 def stream_analysis_for_decision(decision_id):
     conn = get_db_connection()
-    decision = conn.execute('SELECT * FROM decisions WHERE id = ?', (decision_id,)).fetchone()
+
+    decision = conn.execute(
+        "SELECT * FROM decisions WHERE id = ?",
+        (decision_id,)
+    ).fetchone()
+
     conn.close()
-    
+
     if not decision:
-        yield json.dumps({'error': 'Decision not found'})
+        yield f"data: {json.dumps({'error': 'Decision not found'})}\n\n"
         return
-    
+
     decision_dict = dict(decision)
-    
-    # Create prompt for AI analysis with context injection
+
     prompt = f"""
-    Analyze this decision and provide a concise, well-formatted response with key insights:
-    
-    CONTEXT - Decision Details:
-    - Title: {decision_dict['title']}
-    - Reasoning: {decision_dict['reasoning']}
-    - Expected Outcome: {decision_dict['expected_outcome']}
-    - Actual Outcome: {decision_dict['actual_outcome'] or 'Not recorded yet'}
-    
-    INSTRUCTIONS:
-    1. Provide a brief but comprehensive analysis
-    2. Format the response with clear sections
-    3. Highlight key points
-    4. Be specific and actionable
-    5. Structure the response as follows:
-       - COMPARISON: Brief comparison of expected vs actual
-       - KEY INSIGHTS: Most important findings
-       - LESSONS: Key lessons learned
-       - RECOMMENDATIONS: Specific suggestions for future
-    
-    FORMAT RESPONSE IN MARKDOWN STYLE FOR VISUAL CLARITY:
-    **Section Title**: Content here
-    
-    Keep the response concise but insightful.
-    """
-    
+Analyze this decision and provide a concise, well-formatted response
+with key insights.
+
+CONTEXT - Decision Details:
+- Title: {decision_dict['title']}
+- Reasoning: {decision_dict['reasoning']}
+- Expected Outcome: {decision_dict['expected_outcome']}
+- Actual Outcome: {decision_dict['actual_outcome'] or 'Not recorded yet'}
+
+INSTRUCTIONS:
+1. Provide a brief but comprehensive analysis.
+2. Format the response with clear sections.
+3. Highlight key points.
+4. Give specific and actionable suggestions.
+5. Structure the response as follows:
+   - COMPARISON: Expected versus actual outcome
+   - KEY INSIGHTS: Important findings
+   - LESSONS: Lessons learned
+   - RECOMMENDATIONS: Suggestions for the future
+
+Format the response using Markdown.
+Keep the response concise but insightful.
+"""
+
     full_response = ""
+
     for chunk in call_ollama_api(prompt):
         full_response += chunk
-        yield f"data: {json.dumps({'chunk': chunk})}\n\n"
-    
-    yield f"data: {json.dumps({'complete': True, 'full_response': full_response})}\n\n"
+
+        yield (
+            f"data: {json.dumps({'chunk': chunk})}\n\n"
+        )
+
+    yield (
+        "data: "
+        + json.dumps({
+            "complete": True,
+            "full_response": full_response
+        })
+        + "\n\n"
+    )
+
     yield "data: [DONE]\n\n"
 
 
-# Function to stream AI analysis for all decisions
+# --------------------------------------------------
+# ANALYZE ALL DECISIONS
+# --------------------------------------------------
+
 def stream_analysis_for_all_decisions():
     conn = get_db_connection()
-    decisions = conn.execute('SELECT * FROM decisions ORDER BY created_at DESC').fetchall()
+
+    decisions = conn.execute(
+        "SELECT * FROM decisions ORDER BY created_at DESC"
+    ).fetchall()
+
     conn.close()
-    
+
     decisions_list = [dict(decision) for decision in decisions]
-    
+
     if not decisions_list:
-        yield json.dumps({'error': 'No decisions found'})
+        yield (
+            f"data: {json.dumps({'error': 'No decisions found'})}\n\n"
+        )
         return
-    
-    # Create prompt for comprehensive analysis with context injection
+
     prompt = f"""
-    Analyze all these decisions and provide a concise, well-formatted comprehensive analysis:
-    
-    CONTEXT - All Decisions Data:
-    {json.dumps(decisions_list, indent=2, default=str)}
-    
-    INSTRUCTIONS:
-    1. Provide a brief but comprehensive analysis
-    2. Format the response with clear sections
-    3. Highlight key patterns and insights
-    4. Be specific and actionable
-    5. Structure the response as follows:
-       - OVERALL PATTERNS: Key patterns across decisions
-       - SUCCESS RATE: Estimated success rate
-       - COMMON THEMES: Recurring themes
-       - KEY LEARNINGS: Most important insights
-       - RECOMMENDATIONS: Specific suggestions for improvement
-    
-    FORMAT RESPONSE IN MARKDOWN STYLE FOR VISUAL CLARITY:
-    **Section Title**: Content here
-    
-    Keep the response concise but insightful.
-    """
-    
+Analyze all these decisions and provide a concise, comprehensive analysis.
+
+CONTEXT - All Decisions Data:
+{json.dumps(decisions_list, indent=2, default=str)}
+
+INSTRUCTIONS:
+1. Identify important patterns across decisions.
+2. Estimate the success rate where possible.
+3. Identify common themes.
+4. Explain key learnings.
+5. Provide actionable recommendations.
+
+Structure the response as follows:
+- OVERALL PATTERNS
+- SUCCESS RATE
+- COMMON THEMES
+- KEY LEARNINGS
+- RECOMMENDATIONS
+
+Format the response using Markdown.
+Keep it concise but insightful.
+"""
+
     full_response = ""
+
     for chunk in call_ollama_api(prompt):
         full_response += chunk
-        yield f"data: {json.dumps({'chunk': chunk})}\n\n"
-    
-    yield f"data: {json.dumps({'complete': True, 'full_response': full_response, 'decision_count': len(decisions_list)})}\n\n"
+
+        yield (
+            f"data: {json.dumps({'chunk': chunk})}\n\n"
+        )
+
+    yield (
+        "data: "
+        + json.dumps({
+            "complete": True,
+            "full_response": full_response,
+            "decision_count": len(decisions_list)
+        })
+        + "\n\n"
+    )
+
     yield "data: [DONE]\n\n"
 
 
-# Route for AI analysis of a single decision (streaming)
-@app.route('/analyze_decision/<int:decision_id>')
+# --------------------------------------------------
+# AI ANALYSIS ROUTES
+# --------------------------------------------------
+
+@app.route("/analyze_decision/<int:decision_id>")
+@login_required
 def analyze_decision(decision_id):
-    return Response(stream_analysis_for_decision(decision_id), mimetype='text/event-stream')
+    return Response(
+        stream_analysis_for_decision(decision_id),
+        mimetype="text/event-stream"
+    )
 
-# Route for AI analysis of all decisions (streaming)
-@app.route('/analyze_all_decisions')
+
+@app.route("/analyze_all_decisions")
+@login_required
 def analyze_all_decisions():
-    return Response(stream_analysis_for_all_decisions(), mimetype='text/event-stream')
+    return Response(
+        stream_analysis_for_all_decisions(),
+        mimetype="text/event-stream"
+    )
 
-# Route to render decision detail page
-@app.route('/decision/<int:decision_id>')
+
+# --------------------------------------------------
+# DECISION DETAILS PAGE
+# --------------------------------------------------
+
+@app.route("/decision/<int:decision_id>")
+@login_required
 def decision_detail(decision_id):
     conn = get_db_connection()
-    decision = conn.execute('SELECT * FROM decisions WHERE id = ?', (decision_id,)).fetchone()
+
+    decision = conn.execute(
+        "SELECT * FROM decisions WHERE id = ?",
+        (decision_id,)
+    ).fetchone()
+
     conn.close()
-    
+
     if not decision:
-        return jsonify({'error': 'Decision not found'}), 404
-    
-    return render_template('decision_detail.html', decision=dict(decision))
+        return jsonify({
+            "error": "Decision not found"
+        }), 404
+
+    return render_template(
+        "decision_detail.html",
+        decision=dict(decision)
+    )
 
 
-# Route to get a single decision by ID (for API calls)
-@app.route('/decision_data/<int:decision_id>')
+# --------------------------------------------------
+# GET A SINGLE DECISION AS JSON
+# --------------------------------------------------
+
+@app.route("/decision_data/<int:decision_id>")
+@login_required
 def get_decision(decision_id):
     conn = get_db_connection()
-    decision = conn.execute('SELECT * FROM decisions WHERE id = ?', (decision_id,)).fetchone()
+
+    decision = conn.execute(
+        "SELECT * FROM decisions WHERE id = ?",
+        (decision_id,)
+    ).fetchone()
+
     conn.close()
-    
+
     if not decision:
-        return jsonify({'error': 'Decision not found'}), 404
-    
+        return jsonify({
+            "error": "Decision not found"
+        }), 404
+
     return jsonify(dict(decision))
 
-if __name__ == '__main__':
+
+# --------------------------------------------------
+# RUN THE APPLICATION
+# --------------------------------------------------
+
+if __name__ == "__main__":
     app.run(debug=True)
